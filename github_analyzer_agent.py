@@ -4,7 +4,7 @@ import re
 import json
 from typing import Dict, List, Optional, Any
 import requests
-import google.generativeai as genai
+import google.genai as genai
 from evaluation_logic import RealScoringEngine
 
 class GitHubAnalyzerAgent:
