@@ -1,5 +1,5 @@
 # models/explanation_agent.py - Gemini AI Explanation Engine
-import google as genai
+import google.generativeai as genai
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import json
