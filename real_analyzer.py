@@ -1,35 +1,32 @@
-# real_analyzer.py - 100% REAL DEEP REPOSITORY ANALYSIS
+# real_analyzer.py - COMPLETE FIXED CODE
 import os
 import json
 import re
 import ast
-import yaml
-import toml
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Set
-import subprocess
 
 class RealRepositoryAnalyzer:
-    def __init__(self, repo_path: Path):
-        self.repo_path = repo_path
-        self.analysis = {}
-        
+    def __init__(self, repo_path: str):
+        self.repo_path = Path(repo_path)
+    
     def analyze_deep(self) -> Dict:
         """DEEP analysis - reads files, understands code, extracts REAL data"""
         try:
             return {
                 'metadata': self._analyze_metadata(),
-                'structure': self._analyze_structure_deep(),
-                'files': self._analyze_files_deep(),
+                'structure': self._analyze_structure(),
+                'files': self._analyze_files(),
                 'code_quality': self._analyze_code_quality(),
-                'dependencies': self._analyze_dependencies_deep(),
-                'documentation': self._analyze_documentation_deep(),
+                'dependencies': self._analyze_dependencies(),
+                'documentation': self._analyze_documentation(),
                 'testing': self._analyze_testing(),
                 'docker': self._analyze_docker(),
                 'ci_cd': self._analyze_ci_cd(),
                 'challenge_specific': self._analyze_challenge_specific(),
                 'key_files_content': self._extract_key_files(),
-                'stats': self._calculate_stats()
+                'stats': self._calculate_stats(),
+                'code_patterns_found': self._analyze_code_patterns()
             }
         except Exception as e:
             return {'error': f"Deep analysis error: {str(e)}"}
@@ -40,6 +37,8 @@ class RealRepositoryAnalyzer:
             'has_readme': False,
             'has_license': False,
             'has_gitignore': False,
+            'has_test_directory': False,
+            'has_dockerfile': False,
             'total_files': 0,
             'total_lines': 0,
             'repo_size_mb': 0
@@ -48,33 +47,48 @@ class RealRepositoryAnalyzer:
         # Count files and lines
         total_files = 0
         total_lines = 0
+        
         for root, dirs, files in os.walk(self.repo_path):
+            # Skip hidden directories
             dirs[:] = [d for d in dirs if not d.startswith('.')]
+            
             for file in files:
                 if file.startswith('.'):
                     continue
+                
                 file_path = Path(root) / file
-                try:
-                    total_files += 1
-                    if file_path.suffix in ['.py', '.js', '.ts', '.java', '.cpp', '.c', '.go', '.rs', '.rb']:
+                total_files += 1
+                
+                # Count lines for code files
+                if file_path.suffix in ['.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.cpp', '.c']:
+                    try:
                         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                             total_lines += len(f.readlines())
-                except:
-                    continue
+                    except:
+                        continue
         
         metadata['total_files'] = total_files
         metadata['total_lines'] = total_lines
         
         # Check for key files
-        key_files = ['README.md', 'README.rst', 'README.txt']
-        for f in key_files:
-            if (self.repo_path / f).exists():
-                metadata['has_readme'] = True
-                break
+        for item in self.repo_path.iterdir():
+            if item.is_file():
+                name_lower = item.name.lower()
+                if name_lower.startswith('readme'):
+                    metadata['has_readme'] = True
+                elif 'license' in name_lower:
+                    metadata['has_license'] = True
+                elif name_lower == '.gitignore':
+                    metadata['has_gitignore'] = True
+                elif 'dockerfile' in name_lower:
+                    metadata['has_dockerfile'] = True
         
-        metadata['has_license'] = any((self.repo_path / f).exists() 
-                                    for f in ['LICENSE', 'LICENSE.txt', 'LICENSE.md'])
-        metadata['has_gitignore'] = (self.repo_path / '.gitignore').exists()
+        # Check for test directory
+        test_dirs = ['tests', 'test', '__tests__']
+        for test_dir in test_dirs:
+            if (self.repo_path / test_dir).exists():
+                metadata['has_test_directory'] = True
+                break
         
         # Calculate repo size
         total_size = 0
@@ -90,505 +104,365 @@ class RealRepositoryAnalyzer:
         
         return metadata
     
-    def _analyze_structure_deep(self) -> Dict:
-        """Deep structure analysis"""
+    def _analyze_structure(self) -> Dict:
+        """Analyze directory structure"""
         structure = {
-            'directory_tree': {},
-            'tech_stack_indicators': {},
+            'key_directories': {},
             'architecture_patterns': []
         }
         
-        # Build directory tree
-        for root, dirs, files in os.walk(self.repo_path, topdown=True):
-            dirs[:] = [d for d in dirs if not d.startswith('.')]
-            rel_path = Path(root).relative_to(self.repo_path)
-            rel_path_str = str(rel_path) if str(rel_path) != '.' else '/'
-            
-            structure['directory_tree'][rel_path_str] = {
-                'directories': dirs.copy(),
-                'files': [f for f in files if not f.startswith('.')],
-                'file_count': len([f for f in files if not f.startswith('.')])
-            }
-            
-            # Detect tech stack from directories
-            for dir_name in dirs:
-                dir_lower = dir_name.lower()
-                if dir_lower in ['src', 'app', 'lib', 'core']:
-                    structure['tech_stack_indicators']['backend'] = True
-                elif dir_lower in ['frontend', 'client', 'web', 'public', 'static']:
-                    structure['tech_stack_indicators']['frontend'] = True
-                elif dir_lower in ['tests', 'test', '__tests__']:
-                    structure['tech_stack_indicators']['testing'] = True
-                elif dir_lower in ['docs', 'documentation']:
-                    structure['tech_stack_indicators']['documentation'] = True
-                elif dir_lower in ['docker', 'deploy', 'infrastructure']:
-                    structure['tech_stack_indicators']['deployment'] = True
-                elif dir_lower in ['config', 'configuration', 'settings']:
-                    structure['tech_stack_indicators']['configuration'] = True
+        key_dirs = ['src', 'app', 'lib', 'core', 'api', 'routes', 'models', 
+                   'tests', 'test', 'docs', 'documentation', 'docker', 
+                   'deploy', 'config', 'configuration', 'data', 'etl']
+        
+        for dir_name in key_dirs:
+            if (self.repo_path / dir_name).exists():
+                structure['key_directories'][dir_name] = True
         
         # Detect architecture patterns
-        if 'src' in [d.lower() for d in structure['directory_tree'].get('/', {}).get('directories', [])]:
+        if 'src' in structure['key_directories']:
             structure['architecture_patterns'].append('src-based')
-        if 'app' in [d.lower() for d in structure['directory_tree'].get('/', {}).get('directories', [])]:
+        if 'app' in structure['key_directories']:
             structure['architecture_patterns'].append('app-based')
-        if 'tests' in [d.lower() for d in structure['directory_tree'].get('/', {}).get('directories', [])]:
+        if 'tests' in structure['key_directories'] or 'test' in structure['key_directories']:
             structure['architecture_patterns'].append('test-separated')
+        if 'config' in structure['key_directories'] or 'configuration' in structure['key_directories']:
+            structure['architecture_patterns'].append('config-separated')
         
         return structure
     
-    def _analyze_files_deep(self) -> Dict:
-        """Deep file analysis"""
-        files_analysis = {
-            'by_extension': {},
-            'by_language': {},
+    def _analyze_files(self) -> Dict:
+        """Analyze file types and counts"""
+        files = {
+            'python_count': 0,
+            'javascript_count': 0,
+            'typescript_count': 0,
+            'html_count': 0,
+            'css_count': 0,
+            'json_count': 0,
+            'yaml_count': 0,
+            'markdown_count': 0,
             'largest_files': [],
-            'most_complex_files': []
+            'code_file_details': []
         }
         
-        file_stats = []
-        
-        for root, dirs, files in os.walk(self.repo_path):
+        # Count files by type
+        for root, dirs, filenames in os.walk(self.repo_path):
             dirs[:] = [d for d in dirs if not d.startswith('.')]
-            for file in files:
-                if file.startswith('.'):
+            
+            for filename in filenames:
+                if filename.startswith('.'):
                     continue
                 
-                file_path = Path(root) / file
-                rel_path = file_path.relative_to(self.repo_path)
+                file_path = Path(root) / filename
                 ext = file_path.suffix.lower()
                 
-                # Count by extension
-                files_analysis['by_extension'][ext] = files_analysis['by_extension'].get(ext, 0) + 1
+                if ext == '.py':
+                    files['python_count'] += 1
+                elif ext in ['.js', '.jsx']:
+                    files['javascript_count'] += 1
+                elif ext in ['.ts', '.tsx']:
+                    files['typescript_count'] += 1
+                elif ext == '.html':
+                    files['html_count'] += 1
+                elif ext in ['.css', '.scss', '.less']:
+                    files['css_count'] += 1
+                elif ext == '.json':
+                    files['json_count'] += 1
+                elif ext in ['.yaml', '.yml']:
+                    files['yaml_count'] += 1
+                elif ext == '.md':
+                    files['markdown_count'] += 1
                 
-                # Classify by language
-                lang = self._classify_language(ext, file_path.name)
-                if lang:
-                    files_analysis['by_language'][lang] = files_analysis['by_language'].get(lang, 0) + 1
-                
-                try:
-                    # Get file stats
-                    size = file_path.stat().st_size
-                    if size < 1024 * 1024:  # Skip files larger than 1MB for content analysis
-                        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                            content = f.read()
-                            lines = content.count('\n') + 1
-                            
-                            file_stats.append({
-                                'path': str(rel_path),
-                                'size_bytes': size,
-                                'lines': lines,
-                                'language': lang,
-                                'extension': ext
-                            })
-                            
-                            # Find largest files
-                            if size > 1024:  # Larger than 1KB
-                                files_analysis['largest_files'].append({
-                                    'path': str(rel_path),
+                # Get file stats for code files
+                if ext in ['.py', '.js', '.jsx', '.ts', '.tsx', '.java', '.cpp', '.c']:
+                    try:
+                        size = file_path.stat().st_size
+                        if size < 1024 * 1024:  # Less than 1MB
+                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                                content = f.read()
+                                lines = len(content.split('\n'))
+                                
+                                files['code_file_details'].append({
+                                    'path': str(file_path.relative_to(self.repo_path)),
                                     'size_kb': round(size / 1024, 2),
-                                    'lines': lines
+                                    'lines': lines,
+                                    'has_content': len(content.strip()) > 50
                                 })
-                except:
-                    continue
+                                
+                                if size > 1024:  # Larger than 1KB
+                                    files['largest_files'].append({
+                                        'path': str(file_path.relative_to(self.repo_path)),
+                                        'size_kb': round(size / 1024, 2),
+                                        'lines': lines
+                                    })
+                    except:
+                        continue
         
-        # Sort and limit
-        files_analysis['largest_files'] = sorted(
-            files_analysis['largest_files'], 
-            key=lambda x: x['size_kb'], 
-            reverse=True
-        )[:10]
+        # Sort largest files
+        files['largest_files'] = sorted(files['largest_files'], 
+                                      key=lambda x: x['size_kb'], 
+                                      reverse=True)[:10]
         
-        return files_analysis
-    
-    def _classify_language(self, ext: str, filename: str) -> str:
-        """Classify file by programming language"""
-        language_map = {
-            '.py': 'Python',
-            '.js': 'JavaScript',
-            '.jsx': 'JavaScript (React)',
-            '.ts': 'TypeScript',
-            '.tsx': 'TypeScript (React)',
-            '.java': 'Java',
-            '.cpp': 'C++',
-            '.c': 'C',
-            '.go': 'Go',
-            '.rs': 'Rust',
-            '.rb': 'Ruby',
-            '.php': 'PHP',
-            '.html': 'HTML',
-            '.css': 'CSS',
-            '.scss': 'SCSS',
-            '.less': 'LESS',
-            '.json': 'JSON',
-            '.yaml': 'YAML',
-            '.yml': 'YAML',
-            '.toml': 'TOML',
-            '.md': 'Markdown',
-            '.sql': 'SQL',
-            '.sh': 'Shell',
-            '.dockerfile': 'Docker',
-            'dockerfile': 'Docker',
-            '.ipynb': 'Jupyter Notebook'
-        }
+        # Limit code file details
+        files['code_file_details'] = files['code_file_details'][:20]
         
-        if ext in language_map:
-            return language_map[ext]
-        elif filename.lower() == 'dockerfile':
-            return 'Docker'
-        return 'Other'
+        return files
     
     def _analyze_code_quality(self) -> Dict:
-        """Analyze code quality metrics"""
+        """Analyze code quality with AST parsing"""
         quality = {
-            'python_metrics': {},
-            'javascript_metrics': {},
+            'python_metrics': self._analyze_python_code(),
+            'javascript_metrics': self._analyze_javascript_code(),
             'overall': {
                 'has_error_handling': False,
                 'has_logging': False,
                 'has_comments': False,
                 'has_docstrings': False,
-                'complex_files': []
+                'complexity_indicators': []
             }
         }
         
         # Analyze Python files
         python_files = list(self.repo_path.rglob('*.py'))
         if python_files:
-            py_metrics = self._analyze_python_code(python_files[:20])  # Analyze first 20 files
-            quality['python_metrics'] = py_metrics
+            quality['python_metrics'] = self._analyze_python_files(python_files[:10])
         
         # Analyze JavaScript files
         js_files = list(self.repo_path.rglob('*.js')) + list(self.repo_path.rglob('*.jsx'))
         if js_files:
-            js_metrics = self._analyze_javascript_code(js_files[:20])
-            quality['javascript_metrics'] = js_metrics
+            quality['javascript_metrics'] = self._analyze_javascript_files(js_files[:5])
         
-        # Check for error handling patterns
-        error_patterns = ['try:', 'except', 'catch', 'finally', 'throw', 'raise']
-        for root, dirs, files in os.walk(self.repo_path):
-            for file in files:
-                if file.endswith(('.py', '.js', '.ts', '.java')):
-                    file_path = Path(root) / file
-                    try:
-                        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                            content = f.read()
-                            if any(pattern in content for pattern in error_patterns):
-                                quality['overall']['has_error_handling'] = True
-                            if 'log' in content.lower() or 'console.' in content:
-                                quality['overall']['has_logging'] = True
-                            if '#' in content or '//' in content or '/*' in content:
-                                quality['overall']['has_comments'] = True
-                    except:
-                        continue
+        # Check for patterns in all code files
+        code_files = list(self.repo_path.rglob('*.py')) + list(self.repo_path.rglob('*.js')) + \
+                    list(self.repo_path.rglob('*.jsx')) + list(self.repo_path.rglob('*.ts')) + \
+                    list(self.repo_path.rglob('*.tsx'))
+        
+        for file_path in code_files[:15]:
+            try:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                    
+                    # Check for error handling
+                    if 'try:' in content or 'except' in content or 'catch' in content:
+                        quality['overall']['has_error_handling'] = True
+                    
+                    # Check for logging
+                    if 'log' in content.lower() or 'console.' in content:
+                        quality['overall']['has_logging'] = True
+                    
+                    # Check for comments
+                    if '#' in content or '//' in content or '/*' in content:
+                        quality['overall']['has_comments'] = True
+                    
+                    # Check for complexity
+                    lines = content.split('\n')
+                    for i, line in enumerate(lines):
+                        if len(line.strip()) > 100:
+                            quality['overall']['complexity_indicators'].append({
+                                'file': str(file_path.relative_to(self.repo_path)),
+                                'line': i + 1,
+                                'issue': 'Long line (>100 chars)'
+                            })
+            except:
+                continue
+        
+        # Limit complexity indicators
+        quality['overall']['complexity_indicators'] = quality['overall']['complexity_indicators'][:10]
         
         return quality
     
-    def _analyze_python_code(self, python_files: List[Path]) -> Dict:
-        """Deep analysis of Python code"""
+    def _analyze_python_files(self, python_files: List[Path]) -> Dict:
+        """Analyze Python files with AST"""
         metrics = {
             'total_files': len(python_files),
-            'imports': set(),
-            'functions': 0,
-            'classes': 0,
-            'async_functions': 0,
+            'imports': [],
+            'functions': [],
+            'classes': [],
             'has_type_hints': False,
             'has_docstrings': False,
-            'avg_lines_per_file': 0,
-            'complexity_scores': []
+            'has_decorators': False
         }
         
-        total_lines = 0
-        for py_file in python_files[:10]:  # Analyze first 10 files in detail
+        for py_file in python_files:
             try:
                 with open(py_file, 'r', encoding='utf-8') as f:
                     content = f.read()
-                    lines = content.split('\n')
-                    total_lines += len(lines)
+                
+                # Try AST parsing
+                try:
+                    tree = ast.parse(content)
                     
-                    # Parse with AST
-                    try:
-                        tree = ast.parse(content)
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.Import):
+                            for alias in node.names:
+                                metrics['imports'].append(alias.name)
+                        elif isinstance(node, ast.ImportFrom):
+                            module = node.module or ''
+                            for alias in node.names:
+                                metrics['imports'].append(f"{module}.{alias.name}")
                         
-                        # Count functions and classes
-                        for node in ast.walk(tree):
-                            if isinstance(node, ast.FunctionDef):
-                                metrics['functions'] += 1
-                                if node.name.startswith('async'):
-                                    metrics['async_functions'] += 1
-                                if ast.get_docstring(node):
-                                    metrics['has_docstrings'] = True
-                                if node.returns:
-                                    metrics['has_type_hints'] = True
-                            elif isinstance(node, ast.ClassDef):
-                                metrics['classes'] += 1
-                            elif isinstance(node, (ast.Import, ast.ImportFrom)):
-                                if isinstance(node, ast.Import):
-                                    for alias in node.names:
-                                        metrics['imports'].add(alias.name)
-                                elif isinstance(node, ast.ImportFrom):
-                                    metrics['imports'].add(node.module or '')
-                    except SyntaxError:
-                        # Fallback to simple analysis
-                        for line in lines:
-                            if line.strip().startswith('import ') or line.strip().startswith('from '):
-                                parts = line.strip().split()
-                                if len(parts) > 1:
-                                    metrics['imports'].add(parts[1].split('.')[0])
-                            if line.strip().startswith('def '):
-                                metrics['functions'] += 1
-                            if line.strip().startswith('class '):
-                                metrics['classes'] += 1
-                    
-                    # Calculate basic complexity (line count + nesting)
-                    complexity = self._calculate_python_complexity(content)
-                    if complexity > 50:  # Arbitrary threshold
-                        metrics['complexity_scores'].append({
-                            'file': str(py_file.relative_to(self.repo_path)),
-                            'complexity': complexity,
-                            'lines': len(lines)
-                        })
+                        elif isinstance(node, ast.FunctionDef):
+                            func_info = {
+                                'name': node.name,
+                                'has_docstring': bool(ast.get_docstring(node)),
+                                'has_type_hints': bool(node.returns)
+                            }
+                            metrics['functions'].append(func_info)
+                            
+                            if func_info['has_docstring']:
+                                metrics['has_docstrings'] = True
+                            if func_info['has_type_hints']:
+                                metrics['has_type_hints'] = True
+                            if node.decorator_list:
+                                metrics['has_decorators'] = True
+                        
+                        elif isinstance(node, ast.ClassDef):
+                            class_info = {
+                                'name': node.name,
+                                'has_docstring': bool(ast.get_docstring(node))
+                            }
+                            metrics['classes'].append(class_info)
+                
+                except SyntaxError:
+                    # Fallback to regex
+                    lines = content.split('\n')
+                    for line in lines:
+                        if line.strip().startswith('import ') or line.strip().startswith('from '):
+                            parts = line.strip().split()
+                            if len(parts) > 1:
+                                metrics['imports'].append(parts[1].split('.')[0])
+                        elif line.strip().startswith('def '):
+                            metrics['functions'].append({'name': line.strip().split()[1].split('(')[0]})
+                        elif line.strip().startswith('class '):
+                            metrics['classes'].append({'name': line.strip().split()[1].split('(')[0]})
+            
             except:
                 continue
         
-        if metrics['total_files'] > 0:
-            metrics['avg_lines_per_file'] = total_lines / metrics['total_files']
-        
-        # Convert imports set to list
-        metrics['imports'] = list(metrics['imports'])[:20]  # Limit to 20
+        # Remove duplicates
+        metrics['imports'] = list(set(metrics['imports']))
         
         return metrics
     
-    def _analyze_javascript_code(self, js_files: List[Path]) -> Dict:
-        """Deep analysis of JavaScript/TypeScript code"""
+    def _analyze_javascript_files(self, js_files: List[Path]) -> Dict:
+        """Analyze JavaScript files"""
         metrics = {
             'total_files': len(js_files),
-            'imports': set(),
-            'exports': set(),
-            'functions': 0,
-            'classes': 0,
-            'has_types': False,
-            'has_jsdoc': False,
-            'avg_lines_per_file': 0
+            'imports': [],
+            'functions': [],
+            'classes': [],
+            'has_typescript': False
         }
         
-        total_lines = 0
-        for js_file in js_files[:10]:
+        for js_file in js_files:
             try:
                 with open(js_file, 'r', encoding='utf-8') as f:
                     content = f.read()
-                    lines = content.split('\n')
-                    total_lines += len(lines)
-                    
-                    for line in lines:
-                        line = line.strip()
-                        # Check imports
-                        if line.startswith('import ') or line.startswith('require('):
-                            metrics['imports'].add(line)
-                        # Check exports
-                        if line.startswith('export '):
-                            metrics['exports'].add(line)
-                        # Check for TypeScript
-                        if ': ' in line and ('string' in line or 'number' in line or 'boolean' in line):
-                            metrics['has_types'] = True
-                        # Check for JSDoc
-                        if '/**' in line or '* @' in line:
-                            metrics['has_jsdoc'] = True
-                        # Count functions
-                        if 'function ' in line or '=>' in line:
-                            metrics['functions'] += 1
-                        # Count classes
-                        if 'class ' in line:
-                            metrics['classes'] += 1
+                
+                # Check for TypeScript
+                if js_file.suffix in ['.ts', '.tsx']:
+                    metrics['has_typescript'] = True
+                
+                # Extract imports
+                import_pattern = r'(import|require)\s*\(?[\'"]([^"\']+)[\'"]\)?'
+                imports = re.findall(import_pattern, content)
+                for imp in imports:
+                    metrics['imports'].append(imp[1])
+                
+                # Extract functions
+                function_pattern = r'function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\('
+                functions = re.findall(function_pattern, content)
+                metrics['functions'].extend(functions)
+                
+                # Extract classes
+                class_pattern = r'class\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*'
+                classes = re.findall(class_pattern, content)
+                metrics['classes'].extend(classes)
+            
             except:
                 continue
         
-        if metrics['total_files'] > 0:
-            metrics['avg_lines_per_file'] = total_lines / metrics['total_files']
-        
-        metrics['imports'] = list(metrics['imports'])[:20]
-        metrics['exports'] = list(metrics['exports'])[:10]
+        # Remove duplicates
+        metrics['imports'] = list(set(metrics['imports']))
+        metrics['functions'] = list(set(metrics['functions']))
+        metrics['classes'] = list(set(metrics['classes']))
         
         return metrics
     
-    def _calculate_python_complexity(self, content: str) -> int:
-        """Calculate simple complexity score for Python"""
-        lines = content.split('\n')
-        complexity = len(lines)
-        
-        # Add points for nested structures
-        for line in lines:
-            indentation = len(line) - len(line.lstrip())
-            if indentation > 12:  # 3 levels deep (4 spaces each * 3)
-                complexity += 1
-            if 'if ' in line and ' and ' in line:
-                complexity += 1
-            if 'for ' in line and ' in ' in line:
-                complexity += 1
-            if 'while ' in line:
-                complexity += 1
-        
-        return complexity
+    def _analyze_python_code(self) -> Dict:
+        """Legacy method for backward compatibility"""
+        return {'total_files': 0, 'imports': [], 'functions': [], 'classes': []}
     
-    def _analyze_dependencies_deep(self) -> Dict:
-        """Deep dependency analysis"""
-        dependencies = {
+    def _analyze_javascript_code(self) -> Dict:
+        """Legacy method for backward compatibility"""
+        return {'total_files': 0, 'imports': [], 'functions': [], 'classes': []}
+    
+    def _analyze_dependencies(self) -> Dict:
+        """Analyze dependencies"""
+        deps = {
             'python': {'packages': [], 'files_found': []},
             'javascript': {'packages': [], 'files_found': []},
-            'docker': {'images': [], 'files_found': []},
-            'system': {'tools': [], 'files_found': []}
+            'docker': {'images': [], 'files_found': []}
         }
         
         # Python dependencies
-        py_files = ['requirements.txt', 'pyproject.toml', 'setup.py', 'Pipfile', 'setup.cfg']
-        for file_name in py_files:
-            file_path = self.repo_path / file_name
+        req_files = ['requirements.txt', 'pyproject.toml', 'setup.py']
+        for req_file in req_files:
+            file_path = self.repo_path / req_file
             if file_path.exists():
-                dependencies['python']['files_found'].append(file_name)
+                deps['python']['files_found'].append(req_file)
                 try:
-                    if file_name == 'requirements.txt':
-                        deps = self._parse_requirements_txt(file_path)
-                        dependencies['python']['packages'].extend(deps)
-                    elif file_name == 'pyproject.toml':
-                        deps = self._parse_pyproject_toml(file_path)
-                        dependencies['python']['packages'].extend(deps)
-                    elif file_name == 'setup.py':
-                        deps = self._parse_setup_py(file_path)
-                        dependencies['python']['packages'].extend(deps)
+                    if req_file == 'requirements.txt':
+                        with open(file_path, 'r') as f:
+                            for line in f:
+                                line = line.strip()
+                                if line and not line.startswith('#') and not line.startswith('-'):
+                                    pkg = line.split('==')[0].split('>=')[0].split('<=')[0].split('~=')[0]
+                                    if pkg and pkg not in deps['python']['packages']:
+                                        deps['python']['packages'].append(pkg)
                 except:
-                    continue
+                    pass
         
         # JavaScript dependencies
-        js_files = ['package.json', 'yarn.lock', 'package-lock.json']
-        for file_name in js_files:
-            file_path = self.repo_path / file_name
-            if file_path.exists():
-                dependencies['javascript']['files_found'].append(file_name)
-                try:
-                    if file_name == 'package.json':
-                        deps = self._parse_package_json(file_path)
-                        dependencies['javascript']['packages'].extend(deps)
-                except:
-                    continue
+        package_json = self.repo_path / 'package.json'
+        if package_json.exists():
+            deps['javascript']['files_found'].append('package.json')
+            try:
+                with open(package_json, 'r') as f:
+                    data = json.load(f)
+                    if 'dependencies' in data:
+                        deps['javascript']['packages'].extend(list(data['dependencies'].keys()))
+                    if 'devDependencies' in data:
+                        deps['javascript']['packages'].extend(list(data['devDependencies'].keys()))
+            except:
+                pass
         
         # Docker dependencies
-        docker_files = ['Dockerfile', 'docker-compose.yml', 'docker-compose.yaml']
-        for file_name in docker_files:
-            file_path = self.repo_path / file_name
-            if file_path.exists():
-                dependencies['docker']['files_found'].append(file_name)
-                try:
-                    if file_name.startswith('Dockerfile'):
-                        images = self._parse_dockerfile(file_path)
-                        dependencies['docker']['images'].extend(images)
-                except:
-                    continue
+        dockerfile = self.repo_path / 'Dockerfile'
+        if dockerfile.exists():
+            deps['docker']['files_found'].append('Dockerfile')
+            try:
+                with open(dockerfile, 'r') as f:
+                    for line in f:
+                        if line.strip().upper().startswith('FROM '):
+                            image = line[5:].strip().split()[0]
+                            if image and image not in deps['docker']['images']:
+                                deps['docker']['images'].append(image)
+            except:
+                pass
         
-        # Remove duplicates
-        for lang in dependencies:
-            if 'packages' in dependencies[lang]:
-                dependencies[lang]['packages'] = list(set(dependencies[lang]['packages']))
-            if 'images' in dependencies[lang]:
-                dependencies[lang]['images'] = list(set(dependencies[lang]['images']))
-        
-        return dependencies
+        return deps
     
-    def _parse_requirements_txt(self, file_path: Path) -> List[str]:
-        """Parse requirements.txt"""
-        packages = []
-        try:
-            with open(file_path, 'r') as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#') and not line.startswith('-'):
-                        # Extract package name (remove versions)
-                        package = line.split('==')[0].split('>=')[0].split('<=')[0].split('~=')[0]
-                        if package and package not in packages:
-                            packages.append(package)
-        except:
-            pass
-        return packages
-    
-    def _parse_pyproject_toml(self, file_path: Path) -> List[str]:
-        """Parse pyproject.toml"""
-        packages = []
-        try:
-            with open(file_path, 'r') as f:
-                content = f.read()
-                # Simple regex extraction
-                import re
-                # Look for dependencies sections
-                deps_sections = re.findall(r'\[tool\.poetry\.dependencies\](.*?)(?=\[|\Z)', content, re.DOTALL)
-                for section in deps_sections:
-                    lines = section.strip().split('\n')
-                    for line in lines:
-                        line = line.strip()
-                        if '=' in line and not line.startswith('#'):
-                            package = line.split('=')[0].strip().strip('"').strip("'")
-                            if package and package not in packages and package != 'python':
-                                packages.append(package)
-        except:
-            pass
-        return packages
-    
-    def _parse_setup_py(self, file_path: Path) -> List[str]:
-        """Parse setup.py"""
-        packages = []
-        try:
-            with open(file_path, 'r') as f:
-                content = f.read()
-                # Look for install_requires
-                import re
-                matches = re.findall(r'install_requires\s*=\s*\[(.*?)\]', content, re.DOTALL)
-                for match in matches:
-                    lines = match.split('\n')
-                    for line in lines:
-                        line = line.strip().strip(',').strip("'").strip('"')
-                        if line and not line.startswith('#') and line not in packages:
-                            packages.append(line)
-        except:
-            pass
-        return packages
-    
-    def _parse_package_json(self, file_path: Path) -> List[str]:
-        """Parse package.json"""
-        packages = []
-        try:
-            with open(file_path, 'r') as f:
-                data = json.load(f)
-                if 'dependencies' in data:
-                    packages.extend(list(data['dependencies'].keys()))
-                if 'devDependencies' in data:
-                    packages.extend(list(data['devDependencies'].keys()))
-        except:
-            pass
-        return packages
-    
-    def _parse_dockerfile(self, file_path: Path) -> List[str]:
-        """Parse Dockerfile for base images"""
-        images = []
-        try:
-            with open(file_path, 'r') as f:
-                for line in f:
-                    line = line.strip()
-                    if line.upper().startswith('FROM '):
-                        image = line[5:].strip().split()[0]  # Get the image name
-                        if image and image not in images:
-                            images.append(image)
-        except:
-            pass
-        return images
-    
-    def _analyze_documentation_deep(self) -> Dict:
-        """Deep documentation analysis"""
+    def _analyze_documentation(self) -> Dict:
+        """Analyze documentation"""
         docs = {
             'readme': {'exists': False, 'sections': {}, 'quality_score': 0},
             'api_docs': {'exists': False, 'files': []},
-            'architecture_docs': {'exists': False, 'files': []},
-            'setup_instructions': {'exists': False, 'clarity': 0},
-            'examples': {'exists': False, 'count': 0}
+            'architecture_docs': {'exists': False, 'files': []}
         }
         
-        # Find and analyze README
+        # Find README
         readme_files = list(self.repo_path.glob('README*'))
         if readme_files:
             readme_file = readme_files[0]
@@ -597,78 +471,38 @@ class RealRepositoryAnalyzer:
             try:
                 with open(readme_file, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read()
-                    docs['readme']['content_preview'] = content[:1000] + "..." if len(content) > 1000 else content
-                    
-                    # Analyze README sections
-                    sections = {
-                        'installation': ['install', 'setup', 'getting started'],
-                        'usage': ['usage', 'example', 'demo'],
-                        'api': ['api', 'endpoint', 'rest', 'graphql'],
-                        'configuration': ['config', 'setting', 'environment'],
-                        'testing': ['test', 'testing'],
-                        'deployment': ['deploy', 'docker', 'production'],
-                        'contributing': ['contribut', 'develop'],
-                        'license': ['license', 'licence']
-                    }
-                    
-                    content_lower = content.lower()
-                    found_sections = {}
-                    for section, keywords in sections.items():
-                        found_sections[section] = any(keyword in content_lower for keyword in keywords)
-                    
-                    docs['readme']['sections'] = found_sections
-                    
-                    # Calculate quality score (0-10)
-                    score = 0
-                    if found_sections.get('installation'): score += 2
-                    if found_sections.get('usage'): score += 2
-                    if found_sections.get('api'): score += 1
-                    if found_sections.get('configuration'): score += 1
-                    if found_sections.get('testing'): score += 1
-                    if found_sections.get('deployment'): score += 1
-                    if found_sections.get('contributing'): score += 1
-                    if found_sections.get('license'): score += 1
-                    
-                    docs['readme']['quality_score'] = min(score, 10)
-                    
-                    # Check for setup instructions
-                    if found_sections.get('installation'):
-                        docs['setup_instructions']['exists'] = True
-                        # Check clarity (has code blocks)
-                        if '```' in content or '`' in content:
-                            docs['setup_instructions']['clarity'] = 2
-                        elif 'pip install' in content_lower or 'npm install' in content_lower:
-                            docs['setup_instructions']['clarity'] = 1
-                    
-                    # Check for examples
-                    if found_sections.get('usage'):
-                        docs['examples']['exists'] = True
-                        # Count example code blocks
-                        code_blocks = content.count('```')
-                        docs['examples']['count'] = code_blocks // 2  # Each block has opening and closing
+                
+                # Check sections
+                sections = {
+                    'installation': ['install', 'setup', 'getting started'],
+                    'usage': ['usage', 'example', 'demo'],
+                    'api': ['api', 'endpoint', 'rest', 'graphql'],
+                    'configuration': ['config', 'setting', 'environment'],
+                    'testing': ['test', 'testing'],
+                    'deployment': ['deploy', 'docker', 'production']
+                }
+                
+                content_lower = content.lower()
+                found_sections = {}
+                for section, keywords in sections.items():
+                    found_sections[section] = any(keyword in content_lower for keyword in keywords)
+                
+                docs['readme']['sections'] = found_sections
+                
+                # Calculate quality score
+                score = 0
+                for section in ['installation', 'usage', 'api', 'configuration', 'testing', 'deployment']:
+                    if found_sections.get(section):
+                        score += 1
+                docs['readme']['quality_score'] = min(score, 6)
+            
             except:
                 pass
-        
-        # Look for API documentation
-        api_doc_patterns = ['api.md', 'docs/api', 'swagger', 'openapi']
-        for pattern in api_doc_patterns:
-            for path in self.repo_path.rglob(pattern):
-                if path.is_file():
-                    docs['api_docs']['exists'] = True
-                    docs['api_docs']['files'].append(str(path.relative_to(self.repo_path)))
-        
-        # Look for architecture docs
-        arch_patterns = ['architecture.md', 'docs/arch', 'design.md']
-        for pattern in arch_patterns:
-            for path in self.repo_path.rglob(pattern):
-                if path.is_file():
-                    docs['architecture_docs']['exists'] = True
-                    docs['architecture_docs']['files'].append(str(path.relative_to(self.repo_path)))
         
         return docs
     
     def _analyze_testing(self) -> Dict:
-        """Analyze testing setup"""
+        """Analyze testing"""
         testing = {
             'has_tests': False,
             'test_files': [],
@@ -677,49 +511,52 @@ class RealRepositoryAnalyzer:
             'test_directory_structure': False
         }
         
-        # Find test files
-        test_patterns = ['*test*.py', '*spec*.js', '*test*.js', '*test*.ts', '*test*.java']
-        for pattern in test_patterns:
-            test_files = list(self.repo_path.rglob(pattern))
-            for test_file in test_files:
-                rel_path = str(test_file.relative_to(self.repo_path))
-                if 'node_modules' not in rel_path and '__pycache__' not in rel_path:
-                    testing['test_files'].append(rel_path)
+        # Find test directory
+        test_dirs = ['tests', 'test', '__tests__']
+        for test_dir in test_dirs:
+            if (self.repo_path / test_dir).exists():
+                testing['has_tests'] = True
+                testing['test_directory_structure'] = True
+                
+                # Find test files
+                for pattern in ['*.py', '*.js', '*.ts']:
+                    test_files = list((self.repo_path / test_dir).rglob(pattern))
+                    for test_file in test_files:
+                        if 'test' in test_file.name.lower() or 'spec' in test_file.name.lower():
+                            testing['test_files'].append(str(test_file.relative_to(self.repo_path)))
+                break
         
-        testing['has_tests'] = len(testing['test_files']) > 0
-        
-        # Detect test frameworks
-        for test_file in testing['test_files'][:10]:  # Check first 10 test files
-            test_path = self.repo_path / test_file
-            try:
-                with open(test_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-                    if 'pytest' in content or '@pytest' in content:
-                        testing['test_frameworks'].add('pytest')
-                    if 'unittest' in content:
-                        testing['test_frameworks'].add('unittest')
-                    if 'jest' in content or 'describe(' in content or 'it(' in content:
-                        testing['test_frameworks'].add('jest')
-                    if 'mocha' in content:
-                        testing['test_frameworks'].add('mocha')
-                    if 'junit' in content.lower():
-                        testing['test_frameworks'].add('junit')
-            except:
-                continue
+        # Also look for test files in root
+        if not testing['has_tests']:
+            for pattern in ['*test*.py', '*spec*.js', '*test*.js']:
+                test_files = list(self.repo_path.rglob(pattern))
+                for test_file in test_files:
+                    if 'test' in test_file.name.lower() or 'spec' in test_file.name.lower():
+                        testing['test_files'].append(str(test_file.relative_to(self.repo_path)))
+                        testing['has_tests'] = True
         
         # Check for coverage files
-        coverage_files = ['.coverage', 'coverage.xml', 'coverage.json', 'lcov.info']
+        coverage_files = ['.coverage', 'coverage.xml', 'coverage.json']
         for file_name in coverage_files:
             if (self.repo_path / file_name).exists():
                 testing['coverage'] = True
                 break
         
-        # Check test directory structure
-        test_dirs = ['tests', 'test', '__tests__', 'spec']
-        for dir_name in test_dirs:
-            if (self.repo_path / dir_name).exists():
-                testing['test_directory_structure'] = True
-                break
+        # Detect test frameworks from file content
+        for test_file in testing['test_files'][:5]:
+            try:
+                with open(self.repo_path / test_file, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                    if 'pytest' in content:
+                        testing['test_frameworks'].add('pytest')
+                    if 'unittest' in content:
+                        testing['test_frameworks'].add('unittest')
+                    if 'jest' in content:
+                        testing['test_frameworks'].add('jest')
+                    if 'mocha' in content:
+                        testing['test_frameworks'].add('mocha')
+            except:
+                continue
         
         testing['test_frameworks'] = list(testing['test_frameworks'])
         
@@ -729,42 +566,13 @@ class RealRepositoryAnalyzer:
         """Analyze Docker configuration"""
         docker = {
             'has_dockerfile': False,
-            'has_docker_compose': False,
-            'dockerfile_analysis': {},
-            'multi_stage': False,
-            'optimized': False
+            'has_docker_compose': False
         }
         
         # Check for Dockerfile
         dockerfiles = list(self.repo_path.glob('Dockerfile*'))
         if dockerfiles:
-            dockerfile = dockerfiles[0]
             docker['has_dockerfile'] = True
-            
-            try:
-                with open(dockerfile, 'r') as f:
-                    content = f.read()
-                    
-                    docker['dockerfile_analysis'] = {
-                        'lines': len(content.split('\n')),
-                        'base_images': [],
-                        'multi_stage': content.count('FROM ') > 1,
-                        'has_healthcheck': 'HEALTHCHECK' in content,
-                        'has_non_root_user': 'USER ' in content and 'root' not in content,
-                        'has_optimizations': any(x in content for x in ['--no-cache', '--no-install-recommends', 'alpine'])
-                    }
-                    
-                    # Extract base images
-                    for line in content.split('\n'):
-                        if line.strip().upper().startswith('FROM '):
-                            image = line[5:].strip().split()[0]
-                            if image and image not in docker['dockerfile_analysis']['base_images']:
-                                docker['dockerfile_analysis']['base_images'].append(image)
-                    
-                    docker['multi_stage'] = docker['dockerfile_analysis']['multi_stage']
-                    docker['optimized'] = docker['dockerfile_analysis']['has_optimizations']
-            except:
-                pass
         
         # Check for docker-compose
         compose_files = list(self.repo_path.glob('docker-compose*'))
@@ -778,80 +586,57 @@ class RealRepositoryAnalyzer:
         ci_cd = {
             'has_ci': False,
             'ci_files': [],
-            'ci_platforms': set(),
-            'has_cd': False,
-            'deployment_files': []
+            'ci_platforms': set()
         }
         
         # Check for CI files
-        ci_patterns = [
-            '.github/workflows/*.yml',
-            '.github/workflows/*.yaml',
-            '.gitlab-ci.yml',
-            '.travis.yml',
-            'circle.yml',
-            'Jenkinsfile',
-            '.azure-pipelines.yml'
-        ]
+        ci_patterns = ['.github/workflows/*.yml', '.github/workflows/*.yaml', 
+                      '.gitlab-ci.yml', '.travis.yml']
         
         for pattern in ci_patterns:
             ci_files = list(self.repo_path.rglob(pattern))
             if ci_files:
                 ci_cd['has_ci'] = True
+                ci_cd['ci_files'].extend([
+                    str(f.relative_to(self.repo_path)) for f in ci_files
+                ])
+                
                 for ci_file in ci_files:
                     rel_path = str(ci_file.relative_to(self.repo_path))
-                    ci_cd['ci_files'].append(rel_path)
-                    
-                    # Detect platform
                     if 'github' in rel_path:
                         ci_cd['ci_platforms'].add('GitHub Actions')
                     elif 'gitlab' in rel_path:
                         ci_cd['ci_platforms'].add('GitLab CI')
                     elif 'travis' in rel_path:
                         ci_cd['ci_platforms'].add('Travis CI')
-                    elif 'circle' in rel_path:
-                        ci_cd['ci_platforms'].add('CircleCI')
-                    elif 'jenkins' in rel_path.lower():
-                        ci_cd['ci_platforms'].add('Jenkins')
-                    elif 'azure' in rel_path:
-                        ci_cd['ci_platforms'].add('Azure DevOps')
         
         ci_cd['ci_platforms'] = list(ci_cd['ci_platforms'])
         
         return ci_cd
     
     def _analyze_challenge_specific(self) -> Dict:
-        """Analyze specific to coding challenges"""
+        """Analyze challenge-specific indicators"""
         challenge_specific = {
             'ai_ml_indicators': {
                 'has_ai_ml': False,
-                'libraries': [],
-                'model_files': [],
-                'notebooks': []
+                'libraries': []
             },
             'web_app_indicators': {
-                'has_web_app': False,
-                'frameworks': [],
-                'static_files': [],
-                'templates': []
+                'has_web_app': False
             },
             'data_pipeline_indicators': {
-                'has_data_pipeline': False,
-                'etl_files': [],
-                'database_files': [],
-                'airflow_files': []
+                'has_data_pipeline': False
             }
         }
         
-        # AI/ML indicators
-        ai_ml_libraries = ['tensorflow', 'torch', 'pytorch', 'transformers', 'langchain', 'openai', 
-                          'langgraph', 'crewai', 'autogen', 'llamaindex', 'haystack', 'chromadb']
+        # Check for AI/ML libraries in Python files
+        ai_ml_libraries = ['tensorflow', 'torch', 'pytorch', 'transformers', 'langchain', 
+                          'opencv', 'pytesseract', 'easyocr', 'yolo']
         
-        # Check Python files for AI/ML imports
         python_files = list(self.repo_path.rglob('*.py'))
-        for py_file in python_files[:20]:
+        for py_file in python_files[:5]:
             try:
-                with open(py_file, 'r', encoding='utf-8') as f:
+                with open(py_file, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read().lower()
                     for lib in ai_ml_libraries:
                         if lib in content:
@@ -861,61 +646,17 @@ class RealRepositoryAnalyzer:
             except:
                 continue
         
-        # Look for model files
-        model_patterns = ['*.pth', '*.pt', '*.h5', '*.keras', '*.joblib', '*.pkl']
-        for pattern in model_patterns:
-            model_files = list(self.repo_path.rglob(pattern))
-            for model_file in model_files:
-                rel_path = str(model_file.relative_to(self.repo_path))
-                challenge_specific['ai_ml_indicators']['model_files'].append(rel_path)
+        # Check for web app indicators
+        web_files = list(self.repo_path.rglob('*.html')) + list(self.repo_path.rglob('*.js')) + \
+                   list(self.repo_path.rglob('*.jsx'))
+        if web_files:
+            challenge_specific['web_app_indicators']['has_web_app'] = True
         
-        # Look for notebooks
-        notebook_files = list(self.repo_path.rglob('*.ipynb'))
-        if notebook_files:
-            challenge_specific['ai_ml_indicators']['has_ai_ml'] = True
-            for nb_file in notebook_files:
-                challenge_specific['ai_ml_indicators']['notebooks'].append(
-                    str(nb_file.relative_to(self.repo_path))
-                )
-        
-        # Web app indicators
-        web_frameworks = ['flask', 'django', 'fastapi', 'streamlit', 'gradio', 'react', 'vue', 'angular']
-        static_dirs = ['static', 'public', 'assets', 'dist', 'build']
-        template_dirs = ['templates', 'views', 'pages']
-        
-        # Check for web framework files
-        for framework in web_frameworks:
-            framework_files = list(self.repo_path.rglob(f'*{framework}*'))
-            if framework_files:
-                challenge_specific['web_app_indicators']['has_web_app'] = True
-                if framework not in challenge_specific['web_app_indicators']['frameworks']:
-                    challenge_specific['web_app_indicators']['frameworks'].append(framework)
-        
-        # Check for static and template directories
-        for dir_name in static_dirs:
-            if (self.repo_path / dir_name).exists():
-                challenge_specific['web_app_indicators']['has_web_app'] = True
-                challenge_specific['web_app_indicators']['static_files'].append(dir_name)
-        
-        for dir_name in template_dirs:
-            if (self.repo_path / dir_name).exists():
-                challenge_specific['web_app_indicators']['has_web_app'] = True
-                challenge_specific['web_app_indicators']['templates'].append(dir_name)
-        
-        # Data pipeline indicators
-        etl_patterns = ['etl', 'pipeline', 'ingest', 'transform', 'load']
-        database_files = ['*.sql', 'schema.*', 'migration*']
-        airflow_files = ['dag.py', 'airflow.cfg', 'dags/']
-        
-        # Check for ETL patterns in file names
-        for root, dirs, files in os.walk(self.repo_path):
-            for file in files:
-                file_lower = file.lower()
-                if any(pattern in file_lower for pattern in etl_patterns):
-                    challenge_specific['data_pipeline_indicators']['has_data_pipeline'] = True
-                    challenge_specific['data_pipeline_indicators']['etl_files'].append(
-                        str((Path(root) / file).relative_to(self.repo_path))
-                    )
+        # Check for data pipeline indicators
+        data_files = list(self.repo_path.rglob('*.sql')) + list(self.repo_path.rglob('*etl*')) + \
+                    list(self.repo_path.rglob('*pipeline*'))
+        if data_files:
+            challenge_specific['data_pipeline_indicators']['has_data_pipeline'] = True
         
         return challenge_specific
     
@@ -925,8 +666,7 @@ class RealRepositoryAnalyzer:
             'readme': '',
             'requirements': '',
             'dockerfile': '',
-            'main_app': '',
-            'config_files': {}
+            'main_app': ''
         }
         
         # Read README
@@ -934,18 +674,18 @@ class RealRepositoryAnalyzer:
         if readme_files:
             try:
                 with open(readme_files[0], 'r', encoding='utf-8', errors='ignore') as f:
-                    key_files['readme'] = f.read(5000)  # First 5000 chars
+                    key_files['readme'] = f.read(2000)
             except:
                 pass
         
-        # Read requirements files
-        req_files = ['requirements.txt', 'pyproject.toml', 'package.json']
+        # Read requirements
+        req_files = ['requirements.txt', 'package.json']
         for file_name in req_files:
             file_path = self.repo_path / file_name
             if file_path.exists():
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
-                        key_files['requirements'] += f"\n=== {file_name} ===\n" + f.read(2000)
+                        key_files['requirements'] += f"\n=== {file_name} ===\n" + f.read(1000)
                 except:
                     pass
         
@@ -954,32 +694,19 @@ class RealRepositoryAnalyzer:
         if dockerfile.exists():
             try:
                 with open(dockerfile, 'r') as f:
-                    key_files['dockerfile'] = f.read(2000)
+                    key_files['dockerfile'] = f.read(1000)
             except:
                 pass
         
-        # Find and read main application files
-        main_patterns = ['main.py', 'app.py', 'index.js', 'server.js', 'app.js', 'src/main/']
+        # Find main application file
+        main_patterns = ['main.py', 'app.py', 'index.js', 'server.js']
         for pattern in main_patterns:
             main_files = list(self.repo_path.rglob(pattern))
             if main_files:
                 try:
                     with open(main_files[0], 'r', encoding='utf-8') as f:
-                        key_files['main_app'] = f.read(3000)
+                        key_files['main_app'] = f.read(2000)
                     break
-                except:
-                    continue
-        
-        # Read config files
-        config_patterns = ['.env', 'config.*', 'settings.*', '*.cfg', '*.ini']
-        for pattern in config_patterns:
-            config_files = list(self.repo_path.rglob(pattern))
-            for config_file in config_files[:3]:  # Read first 3 config files
-                try:
-                    with open(config_file, 'r', encoding='utf-8') as f:
-                        content = f.read(1000)
-                        rel_path = str(config_file.relative_to(self.repo_path))
-                        key_files['config_files'][rel_path] = content
                 except:
                     continue
         
@@ -992,15 +719,10 @@ class RealRepositoryAnalyzer:
             'line_count': 0,
             'code_files': 0,
             'comment_lines': 0,
-            'blank_lines': 0,
-            'avg_file_size': 0,
-            'largest_file': {'path': '', 'size_kb': 0}
+            'blank_lines': 0
         }
         
-        total_size = 0
-        largest_file = {'path': '', 'size': 0}
-        
-        code_extensions = {'.py', '.js', '.jsx', '.ts', '.tsx', '.java', '.cpp', '.c', '.go', '.rs', '.rb', '.php'}
+        code_extensions = {'.py', '.js', '.jsx', '.ts', '.tsx', '.java', '.cpp', '.c'}
         
         for root, dirs, files in os.walk(self.repo_path):
             dirs[:] = [d for d in dirs if not d.startswith('.')]
@@ -1009,45 +731,66 @@ class RealRepositoryAnalyzer:
                     continue
                 
                 file_path = Path(root) / file
-                try:
-                    size = file_path.stat().st_size
-                    total_size += size
-                    stats['file_count'] += 1
-                    
-                    # Track largest file
-                    if size > largest_file['size']:
-                        largest_file = {
-                            'path': str(file_path.relative_to(self.repo_path)),
-                            'size': size
-                        }
-                    
-                    # Count lines for code files
-                    if file_path.suffix in code_extensions:
-                        stats['code_files'] += 1
-                        try:
-                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                                lines = f.readlines()
-                                stats['line_count'] += len(lines)
-                                
-                                # Count comments and blank lines
-                                for line in lines:
-                                    line_stripped = line.strip()
-                                    if not line_stripped:
-                                        stats['blank_lines'] += 1
-                                    elif line_stripped.startswith('#') or line_stripped.startswith('//'):
-                                        stats['comment_lines'] += 1
-                        except:
-                            continue
-                except:
-                    continue
-        
-        if stats['file_count'] > 0:
-            stats['avg_file_size'] = round(total_size / stats['file_count'] / 1024, 2)
-        
-        if largest_file['path']:
-            stats['largest_file'] = {
-                'path': largest_file['path'],
-                'size_kb': round(largest_file['size'] / 1024, 2)
-            }
+                stats['file_count'] += 1
+                
+                # Count lines for code files
+                if file_path.suffix in code_extensions:
+                    stats['code_files'] += 1
+                    try:
+                        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                            lines = f.readlines()
+                            stats['line_count'] += len(lines)
+                            
+                            for line in lines:
+                                line_stripped = line.strip()
+                                if not line_stripped:
+                                    stats['blank_lines'] += 1
+                                elif line_stripped.startswith('#') or line_stripped.startswith('//'):
+                                    stats['comment_lines'] += 1
+                    except:
+                        continue
         
         return stats
+    
+    def _analyze_code_patterns(self) -> Dict:
+        """Analyze code patterns"""
+        patterns_found = {
+            'error_handling': [],
+            'logging': [],
+            'testing': []
+        }
+        
+        code_files = list(self.repo_path.rglob('*.py')) + list(self.repo_path.rglob('*.js')) + \
+                    list(self.repo_path.rglob('*.ts'))
+        
+        for file_path in code_files[:10]:
+            try:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                    rel_path = str(file_path.relative_to(self.repo_path))
+                    
+                    # Error handling patterns
+                    if 'try:' in content or 'except' in content or 'catch' in content:
+                        patterns_found['error_handling'].append({
+                            'file': rel_path,
+                            'count': content.count('try:') + content.count('except') + content.count('catch')
+                        })
+                    
+                    # Logging patterns
+                    if 'log' in content.lower() or 'console.' in content:
+                        patterns_found['logging'].append({
+                            'file': rel_path,
+                            'count': content.lower().count('log')
+                        })
+                    
+                    # Testing patterns
+                    if 'test' in content.lower() or 'assert' in content:
+                        patterns_found['testing'].append({
+                            'file': rel_path,
+                            'count': content.lower().count('test') + content.count('assert')
+                        })
+                        
+            except:
+                continue
+        
+        return patterns_found
